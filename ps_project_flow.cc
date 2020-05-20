@@ -10,6 +10,9 @@
 #include "ns3/gnuplot.h"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-radio-energy-model-helper.h"
+#include "ns3/on-off-helper.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/ipv4-flow-classifier.h"
 
 #include <iostream>
 #include <fstream>
@@ -17,9 +20,11 @@
 #include <string>
 #include <unistd.h>
 #include <stdio.h>
+#include <numeric>
 
 using namespace ns3;
 using namespace std;
+//https://www.nsnam.org/doxygen/energy-model-with-harvesting-example_8cc.html
 
 NS_LOG_COMPONENT_DEFINE ("EnergyWithHarvestingExample");
 
@@ -35,12 +40,19 @@ long counter_data5_x = 0;
 long counter_data6_x = 0;
 float graphArray [4];
 
+/*Cal mean from all dropped bytes*/
+uint64_t meanDroppedBytes(std::vector<uint64_t> dropped){
+	if(dropped.size() == 0) return 0;
+	uint64_t sum = accumulate(dropped.begin(),dropped.end(),0);
+	return (uint64_t)((double)sum/(double)dropped.size());
+}
+
 inline string PrintReceivedPacket(const Address &from)
 {
     InetSocketAddress iaddr = InetSocketAddress::ConvertFrom(from);
 
     ostringstream oss;
-    oss << "- nReceived jeden paket! Socket:" << iaddr.GetIpv4() << "port:" << iaddr.GetPort () << "at time =" << Simulator::Now().GetSeconds() << "n--";
+    oss << "- nReceived jeden paket! Socket: " << iaddr.GetIpv4() << " port: " << iaddr.GetPort () << " at time = " << Simulator::Now().GetSeconds() << "n--";
     return oss.str();
 }
 
@@ -57,7 +69,7 @@ void ReceivePacket(Ptr<Socket> socket)
     {
         if (packet->GetSize() > 0)
         {
-            NS_LOG_UNCOND(PrintReceivedPacket(from));
+            //NS_LOG_UNCOND(PrintReceivedPacket(from));
             globalCounter += packet->GetSize();
             globalCounter2++;
         }
@@ -90,8 +102,8 @@ static void GenerateTraffic (Ptr <Socket> socket, uint32_t pktSize, Ptr <Node> n
 ///Funkcia sledovania zostávajúcej energie v uzle.
 void RemainingEnergy(double oldValue, double remainingEnergy)
 {
-    cout << Simulator::Now().GetSeconds()
-        << "s Aktuálna zostávajúca energia =" << remainingEnergy << "J" <<  endl;
+    /*cout << Simulator::Now().GetSeconds()
+        << "s Aktuálna zostávajúca energia =" << remainingEnergy << "J" <<  endl;*/
     if (counter_data3_x % 3125 == 0)
     {
         data3.Add(Simulator::Now().GetSeconds(), remainingEnergy);
@@ -102,8 +114,8 @@ void RemainingEnergy(double oldValue, double remainingEnergy)
 ///Funkcia sledovania celkovej spotreby energie v uzle.
 void TotalEnergy(double oldValue, double totalEnergy)
 {
-     cout << Simulator::Now().GetSeconds()
-                << "s Celková spotreba energie rádia =" << totalEnergy << "J" <<  endl;
+     /*cout << Simulator::Now().GetSeconds()
+                << "s Celková spotreba energie rádia =" << totalEnergy << "J" <<  endl;*/
     if (counter_data4_x % 3125 == 0)
     {
         data4.Add(Simulator::Now().GetSeconds(), totalEnergy);
@@ -114,8 +126,8 @@ void TotalEnergy(double oldValue, double totalEnergy)
 ///Stopová funkcia pre energiu zberanú energetickým kombajnom.
 void HarvestedPower(double oldValue, double harvestedPower)
 {
-     cout << Simulator::Now().GetSeconds()
-                << "s Aktuálny zber výkonu =" << harvestedPower << "W" <<  endl;
+     /*cout << Simulator::Now().GetSeconds()
+                << "s Aktuálny zber výkonu =" << harvestedPower << "W" <<  endl;*/
     if (counter_data5_x % 3125 == 0)
     {
         data5.Add(Simulator::Now().GetSeconds(), harvestedPower);
@@ -126,9 +138,9 @@ void HarvestedPower(double oldValue, double harvestedPower)
 ///Stopová funkcia celkovej energie zozbieranej uzlom.
 void TotalEnergyHarvested(double oldValue, double TotalEnergyHarvested)
 {
-     cout << Simulator::Now().GetSeconds()
+     /*cout << Simulator::Now().GetSeconds()
                 << "s Celková energia zozbieraná ="
-                << TotalEnergyHarvested << "J" <<  endl;
+                << TotalEnergyHarvested << "J" <<  endl;*/
     if (counter_data6_x % 3125 == 0)
     {
         data6.Add(Simulator::Now().GetSeconds(), TotalEnergyHarvested);
@@ -230,28 +242,28 @@ int main(int argc, char * argv [])
     graf3.SetTitle("Graf zavislosti zostatku energie od casu.");
     graf3.SetLegend("Cas [s]", "Zostavajuca energia [J]");
     data3.SetTitle("Vysledok");
-    data3.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    data3.SetStyle(Gnuplot2dDataset::LINES_POINTS);
 
     Gnuplot graf4("graf_pole4.svg");
     graf4.SetTerminal("svg");
     graf4.SetTitle("Graf zavislosti celkovej spotreby energie od casu.");
     graf4.SetLegend("Cas [s]", "Celkova spotreba energie [J]");
     data4.SetTitle("Vysledok");
-    data4.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    data4.SetStyle(Gnuplot2dDataset::LINES_POINTS);
 
     Gnuplot graf5("graf_pole5.svg");
     graf5.SetTerminal("svg");
     graf5.SetTitle("Graf zavislosti zozbieranej energie od casu.");
     graf5.SetLegend("Cas [s]", "Zozbierana energia [W]");
-    graf5.SetTitle("Vysledok");
-    graf5.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
-
+    data5.SetTitle("Vysledok");
+    data5.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+    
     Gnuplot graf6("graf_pole6.svg");
     graf6.SetTerminal("svg");
     graf6.SetTitle("Graf zavislosti celkovej zozbieranej energie od casu.");
     graf6.SetLegend("Cas [s]", "Celkova zozbierana energia [J]");
-    graf6.SetTitle("Vysledok");
-    data4.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    data6.SetTitle("Vysledok");
+    data6.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
 
     CommandLine cmd;
     cmd.AddValue("phyMode", "režim Wifi Phy", phyMode);
@@ -435,24 +447,34 @@ int main(int argc, char * argv [])
                 Ptr<BasicEnergyHarvester> basicHarvesterPtr = DynamicCast<BasicEnergyHarvester> (harvesters.Get (1));
                 basicHarvesterPtr->TraceConnectWithoutContext ("HarvestedPower", MakeCallback (&HarvestedPower));
                 basicHarvesterPtr->TraceConnectWithoutContext ("TotalEnergyHarvested", MakeCallback (&TotalEnergyHarvested));
-//                Ptr<DeviceEnergyModel> basicRadioModelPtr = basicSourcePtr->FindDeviceEnergyModels "NS3::WifiRadioEnergyModel").Get(0);
-//                NS_ASSERT(basicRadioModelPtr != 0);
-//                basicRadioModelPtr->TraceConnectWithoutContext("TotalEnergyConsumption", MakeCallback(&​​TotalEnergy));
-//                // zberač energie
-//                Ptr<BasicEnergyHarvester> basicHarvesterPtr = DynamicCast<BasicEnergyHarvester>(harvesters.Get(1));
-//                basicHarvesterPtr->TraceConnectWithoutContext("HarvestedPower", MakeCallback(&​​HarvestedPower));
-//                basicHarvesterPtr->TraceConnectWithoutContext("TotalEnergyHarvested", MakeCallback (& ​​TotalEnergyHarvested));
                 /************************************************* **************************/
 
                 /** nastavenie simulácie **/
                 // začať prevádzku
 
                 Simulator::Schedule(Seconds(startTime + j * 0.7 + k * 0.4), &GenerateTraffic, source, PpacketSize,
-                                    senzorNet.Get (0), numPackets, interPacketInterval);
+                                    senzorNet.Get(0), numPackets, interPacketInterval);
             }
 
         }
     }
+    //https://www.nsnam.org/doxygen/wifi-hidden-terminal_8cc_source.html
+    // 7. Install applications: two CBR streams each saturating the channel
+   uint16_t cbrPort = 12345;
+   OnOffHelper onOffHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address ("10.1.1.12"), cbrPort));
+   onOffHelper.SetAttribute("PacketSize", UintegerValue(PpacketSize));
+   onOffHelper.SetAttribute("OnTime",  StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+   onOffHelper.SetAttribute("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
+   onOffHelper.SetConstantRate(DataRate("448kb/s"));
+   onOffHelper.SetAttribute ("StartTime", TimeValue(Seconds(0.000000)));
+    ApplicationContainer cbrApps;
+    for (int i = 1; i < numNodes; i++){
+	cbrApps.Add(onOffHelper.Install(senzors.Get(i)));
+    }
+    // 8. Install FlowMonitor on all nodes
+    FlowMonitorHelper flowmon;
+    Ptr<FlowMonitor> monitor = flowmon.InstallAll();
+ 
     Simulator::Stop(Seconds(10.0));
 
     AnimationInterface anim ("netanim_pole.xml");
@@ -468,6 +490,47 @@ int main(int argc, char * argv [])
 
     Simulator::Run();
     Simulator::Destroy();
+
+    /*Pick stats from FlowMonitor*/
+    std::ofstream lossFile("loss-rates.dat", std::ofstream::app);
+    std::ofstream delayFile("delays.dat", std::ofstream::app);
+    std::ofstream usefulFile("useful-data.dat", std::ofstream::app);
+
+    // 10. Print per flow statistics
+    monitor->CheckForLostPackets();
+    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier>(flowmon.GetClassifier());
+    FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats();
+    std::cout << "Print per flow statistics "<< stats.size() << std::endl;
+    cout << "hospodar " << local.GetIpv4() << " port: " << local.GetPort () <<endl;
+    for(std::map<FlowId, FlowMonitor::FlowStats>::const_iterator it = stats.begin(); it != stats.end(); it++)
+      {
+            Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(it->first);
+/*Calc needed stats*/
+		double packetLossRate = ((double)it->second.lostPackets/(double)(it->second.lostPackets + it->second.rxPackets))*100;
+		double meanDelay = (it->second.delaySum.GetMilliSeconds()/(double)it->second.rxPackets);
+		double usefulData = ((double)(it->second.txBytes - meanDroppedBytes(it->second.bytesDropped))/(double)it->second.txBytes)*100;
+
+		/*Save stats*/
+		lossFile << numNodes << " " << packetLossRate << std::endl;
+		delayFile << numNodes << " " << meanDelay << std::endl;
+		usefulFile << PpacketSize << " " << usefulData << std::endl;
+
+std::cout << "FlowId: " << it->first << " Src-Addr:" << t.sourceAddress << " Dst-Addr:" << t.destinationAddress << std::endl;
+		std::cout << "Send packets = " << it->second.txPackets << std::endl;
+		std::cout << "Received packets = " << it->second.rxPackets << std::endl;
+		std::cout << "Throughput = " << it->second.rxBytes*8.0 / (it->second.timeLastRxPacket.GetSeconds() - it->second.timeFirstTxPacket.GetSeconds())/1024 << " Kbps" << std::endl;			
+		std::cout << "Packet Loss Rate = " << packetLossRate << "\%" << std::endl;
+		std::cout << "Packet Delay Sum = " << it->second.delaySum.As(Time::S) << std::endl;		
+		std::cout << "Mean Delay = " << meanDelay << "ms" << std::endl;
+		std::cout << "Dropped Bytes = " << meanDroppedBytes(it->second.bytesDropped) << std::endl;
+		std::cout << "Mean useful bytes = " << usefulData << "\%" << std::endl;		
+      }
+    monitor->SerializeToXmlFile("NameOfFile.xml", true, true);
+
+
+    lossFile.close();
+    delayFile.close();
+    usefulFile.close();
 
     graf.AddDataset(data);
     ofstream plotFile("graf_pole.plt");
