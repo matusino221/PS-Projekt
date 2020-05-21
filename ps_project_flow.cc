@@ -264,6 +264,38 @@ int main(int argc, char * argv [])
     graf6.SetLegend("Cas [s]", "Celkova zozbierana energia [J]");
     data6.SetTitle("Vysledok");
     data6.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    
+    Gnuplot graf7("graf_pole7.svg");
+    graf7.SetTerminal("svg");
+    graf7.SetTitle("Graf zavislosti Throughput od node.");
+    graf7.SetLegend("Node", "Throughput");
+    Gnuplot2dDataset data7;
+    data7.SetTitle("Vysledok");
+    data7.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    
+    Gnuplot graf8("graf_pole8.svg");
+    graf8.SetTerminal("svg");
+    graf8.SetTitle("Graf zavislosti sumy oneskorenia paketov od node.");
+    graf8.SetLegend("Node", "suma oneskorenia paketov [s]");
+    Gnuplot2dDataset data8;
+    data8.SetTitle("Vysledok");
+    data8.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    
+    Gnuplot graf9("graf_pole9.svg");
+    graf9.SetTerminal("svg");
+    graf9.SetTitle("Graf zavislosti priemerneho oneskorenia od node.");
+    graf9.SetLegend("Node", "priemerneho oneskorenia [ms]");
+    Gnuplot2dDataset data9;
+    data9.SetTitle("Vysledok");
+    data9.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
+    
+    Gnuplot graf10("graf_pole10.svg");
+    graf10.SetTerminal("svg");
+    graf10.SetTitle("Graf zavislosti jitter Sum od node.");
+    graf10.SetLegend("Node", "jitter Sum [ms]");
+    Gnuplot2dDataset data10;
+    data10.SetTitle("Vysledok");
+    data10.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
 
     CommandLine cmd;
     cmd.AddValue("phyMode", "režim Wifi Phy", phyMode);
@@ -357,11 +389,6 @@ int main(int argc, char * argv [])
     Ptr <ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(100.0, 250.0, 0.0));
     mobility.SetPositionAllocator(positionAlloc);
-    // mobility.SetPositionAllocator ("ns3::RandomRectanglePositionAllocator",
-    // "X", StringValue ("ns3::UniformRandomVariable [Min = 0,0 | Max = 50.0]"), "Y", StringValue ("ns3::UniformRandomVariable [Min = -20.0 | Max = 20.0]"));
-    // mobility.SetMobilityModel("ns3::RandomRectanglePositionAllocator");
-    // mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Obdĺžnik (-100, 250, -100, 250)));
-
     mobility.Install(hosp);
 
 
@@ -458,17 +485,20 @@ int main(int argc, char * argv [])
 
         }
     }
+    
     //https://www.nsnam.org/doxygen/wifi-hidden-terminal_8cc_source.html
     // 7. Install applications: two CBR streams each saturating the channel
    uint16_t cbrPort = 12345;
-   OnOffHelper onOffHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address ("10.1.1.12"), cbrPort));
+   Ipv4Address hospIpv4 = hosp.Get(0)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal();
+   OnOffHelper onOffHelper ("ns3::UdpSocketFactory", InetSocketAddress (hospIpv4, cbrPort));
    onOffHelper.SetAttribute("PacketSize", UintegerValue(PpacketSize));
-   onOffHelper.SetAttribute("OnTime",  StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+   onOffHelper.SetAttribute("OnTime",  StringValue ("ns3::ConstantRandomVariable[Constant=1000]"));
    onOffHelper.SetAttribute("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-   onOffHelper.SetConstantRate(DataRate("448kb/s"));
-   onOffHelper.SetAttribute ("StartTime", TimeValue(Seconds(0.000000)));
+  // onOffHelper.SetConstantRate(DataRate("448kb/s"));
+   onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate("448kb/s")));
+   onOffHelper.SetAttribute("StartTime", TimeValue(Seconds(startTime)));
     ApplicationContainer cbrApps;
-    for (int i = 1; i < numNodes; i++){
+    for (int i = 0; i < senzors.GetN(); i++){
 	cbrApps.Add(onOffHelper.Install(senzors.Get(i)));
     }
     // 8. Install FlowMonitor on all nodes
@@ -501,7 +531,6 @@ int main(int argc, char * argv [])
     Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier>(flowmon.GetClassifier());
     FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats();
     std::cout << "Print per flow statistics "<< stats.size() << std::endl;
-    cout << "hospodar " << local.GetIpv4() << " port: " << local.GetPort () <<endl;
     for(std::map<FlowId, FlowMonitor::FlowStats>::const_iterator it = stats.begin(); it != stats.end(); it++)
       {
             Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(it->first);
@@ -509,24 +538,43 @@ int main(int argc, char * argv [])
 		double packetLossRate = ((double)it->second.lostPackets/(double)(it->second.lostPackets + it->second.rxPackets))*100;
 		double meanDelay = (it->second.delaySum.GetMilliSeconds()/(double)it->second.rxPackets);
 		double usefulData = ((double)(it->second.txBytes - meanDroppedBytes(it->second.bytesDropped))/(double)it->second.txBytes)*100;
+                double ThroughputData = it->second.rxBytes*8.0 / (it->second.timeLastRxPacket.GetSeconds() - it->second.timeFirstTxPacket.GetSeconds())/1024;
 
 		/*Save stats*/
 		lossFile << numNodes << " " << packetLossRate << std::endl;
 		delayFile << numNodes << " " << meanDelay << std::endl;
 		usefulFile << PpacketSize << " " << usefulData << std::endl;
 
-std::cout << "FlowId: " << it->first << " Src-Addr:" << t.sourceAddress << " Dst-Addr:" << t.destinationAddress << std::endl;
+                std::cout << "FlowId: " << it->first << " Src-Addr:" << t.sourceAddress << " Dst-Addr:" << t.destinationAddress << std::endl;
 		std::cout << "Send packets = " << it->second.txPackets << std::endl;
 		std::cout << "Received packets = " << it->second.rxPackets << std::endl;
-		std::cout << "Throughput = " << it->second.rxBytes*8.0 / (it->second.timeLastRxPacket.GetSeconds() - it->second.timeFirstTxPacket.GetSeconds())/1024 << " Kbps" << std::endl;			
-		std::cout << "Packet Loss Rate = " << packetLossRate << "\%" << std::endl;
-		std::cout << "Packet Delay Sum = " << it->second.delaySum.As(Time::S) << std::endl;		
+		std::cout << "Throughput = " << ThroughputData << " Kbps" << std::endl;
+		data7.Add((double)it->first, (double)ThroughputData);
+                std::cout << "Packet Loss Rate = " << packetLossRate << "\%" << std::endl;
+		std::cout << "Packet Delay Sum = " << it->second.delaySum.As(Time::S) << std::endl;
+                std::cout << "Packet Delay Sum = " << it->second.delaySum.GetMilliSeconds() << std::endl;
+                data8.Add((double)it->first, (double)it->second.delaySum.GetMilliSeconds()/1000);
 		std::cout << "Mean Delay = " << meanDelay << "ms" << std::endl;
+                if (isnan(meanDelay)) {
+                    meanDelay=0.0;
+                }
+                data9.Add((double)it->first, (double)meanDelay);
 		std::cout << "Dropped Bytes = " << meanDroppedBytes(it->second.bytesDropped) << std::endl;
 		std::cout << "Mean useful bytes = " << usefulData << "\%" << std::endl;		
+                
+                std::cout << "Packet Loss = " << it->second.lostPackets << std::endl;
+                std::cout << "delay Histogram = " << it->second.delayHistogram.GetNBins() << std::endl;
+                std::cout << "jitter Histogram = " << it->second.jitterHistogram.GetNBins() << std::endl;
+                std::cout << "jitter Sum = " << it->second.jitterSum.GetMilliSeconds() << std::endl;
+                data10.Add((double)it->first, (double)it->second.jitterSum.GetMilliSeconds());
+                std::cout << "packet Size Histogram= " << it->second.packetSizeHistogram.GetNBins() << std::endl;
+                std::cout << "packets Dropped= ";
+                for (auto i = it->second.packetsDropped.begin(); i != it->second.packetsDropped.end(); ++i)
+                    std::cout << *i << ' ';
+                cout << endl;
+                std::cout << "times Forwarded= " << it->second.timesForwarded << std::endl;
       }
     monitor->SerializeToXmlFile("NameOfFile.xml", true, true);
-
 
     lossFile.close();
     delayFile.close();
@@ -568,6 +616,30 @@ std::cout << "FlowId: " << it->first << " Src-Addr:" << t.sourceAddress << " Dst
     graf6.GenerateOutput(plotFile6);
     plotFile6.close();
     system("gnuplot graf_pole6.plt");
+    
+    graf7.AddDataset(data7);
+    ofstream plotFile7 ("graf_pole7.plt");
+    graf7.GenerateOutput(plotFile7);
+    plotFile7.close();
+    system("gnuplot graf_pole7.plt");
+        
+    graf8.AddDataset(data8);
+    ofstream plotFile8 ("graf_pole8.plt");
+    graf8.GenerateOutput(plotFile8);
+    plotFile8.close();
+    system("gnuplot graf_pole8.plt");
+    
+    graf9.AddDataset(data9);
+    ofstream plotFile9 ("graf_pole9.plt");
+    graf9.GenerateOutput(plotFile9);
+    plotFile9.close();
+    system("gnuplot graf_pole9.plt");
+    
+    graf10.AddDataset(data10);
+    ofstream plotFile10 ("graf_pole10.plt");
+    graf10.GenerateOutput(plotFile10);
+    plotFile10.close();
+    system("gnuplot graf_pole10.plt");
 
 
     return 0;
