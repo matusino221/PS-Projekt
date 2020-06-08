@@ -40,6 +40,29 @@ long counter_data5_x = 0;
 long counter_data6_x = 0;
 float graphArray [4];
 
+int totalLostNodes = 0;
+
+void TableChanged(string path, uint32_t val) {
+     std::stringstream test(path);
+    std::string segment;
+    std::vector<std::string> seglist;
+
+    while(std::getline(test, segment, '/'))
+    {
+       seglist.push_back(segment);
+    }
+    
+    int nodeID = stoi(seglist[2]);
+    cout << val << endl;
+    Time now = Simulator::Now();
+    //Avoid initial routing
+    if(val == 0 && (now > Seconds(30.0))) {
+        //MoveUAVPos(node_cont.Get(nodeID), Vector(1000.0,1000.0,0));
+        totalLostNodes++;
+    }
+    cout << "BOL SOM TU!" << endl;
+}
+
 /*Cal mean from all dropped bytes*/
 uint64_t meanDroppedBytes(std::vector<uint64_t> dropped){
 	if(dropped.size() == 0) return 0;
@@ -56,11 +79,6 @@ inline string PrintReceivedPacket(const Address &from)
     return oss.str();
 }
 
-/**
-param socket Pointer na zásuvku.
-*
-* Paket príjem drez.
-*/
 void ReceivePacket(Ptr<Socket> socket)
 {
     Ptr<Packet> packet;
@@ -76,15 +94,6 @@ void ReceivePacket(Ptr<Socket> socket)
     }
 }
 
-/**
-param socket Pointer na zásuvku.
-veľkosť pktSize Veľkosť paketu.
-* n n Ukazovateľ na uzol.
-* Param pktCount Počet paketov, ktoré sa majú vygenerovať.
-* Param pktInterval Interval odosielania paketov.
-*
-* Generátor prevádzky.
-*/
 static void GenerateTraffic (Ptr <Socket> socket, uint32_t pktSize, Ptr <Node> n,uint32_t pktCount, Time pktInterval)
 {
     if (pktCount> 0)
@@ -99,7 +108,6 @@ static void GenerateTraffic (Ptr <Socket> socket, uint32_t pktSize, Ptr <Node> n
     }
 }
 
-///Funkcia sledovania zostávajúcej energie v uzle.
 void RemainingEnergy(double oldValue, double remainingEnergy)
 {
     /*cout << Simulator::Now().GetSeconds()
@@ -111,7 +119,6 @@ void RemainingEnergy(double oldValue, double remainingEnergy)
     counter_data3_x ++;
 }
 
-///Funkcia sledovania celkovej spotreby energie v uzle.
 void TotalEnergy(double oldValue, double totalEnergy)
 {
      /*cout << Simulator::Now().GetSeconds()
@@ -123,7 +130,6 @@ void TotalEnergy(double oldValue, double totalEnergy)
     counter_data4_x ++;
 }
 
-///Stopová funkcia pre energiu zberanú energetickým kombajnom.
 void HarvestedPower(double oldValue, double harvestedPower)
 {
      /*cout << Simulator::Now().GetSeconds()
@@ -135,7 +141,6 @@ void HarvestedPower(double oldValue, double harvestedPower)
     counter_data5_x ++;
 }
 
-///Stopová funkcia celkovej energie zozbieranej uzlom.
 void TotalEnergyHarvested(double oldValue, double TotalEnergyHarvested)
 {
      /*cout << Simulator::Now().GetSeconds()
@@ -168,7 +173,13 @@ void standardDeviation(float data[], float temp[]) {
 static void goToNewPosition(Ptr<Node> hosp, Gnuplot2dDataset* data, Gnuplot2dDataset* data2, int k) {
     MobilityHelper mobility;
     int strana = rand() % 4;
-    int poloha = rand() % 250;
+    int poloha = rand() % 250;// pouzit random z NS3
+//    min=0;
+//    max=250;
+//    Ptr x0 = CreateObject();
+//    x0->SetAttribute("Min", DoubleValue (min));
+//    x0->SetAttribute("Max", DoubleValue (max));
+//    x0->GetValue();
     Ptr <ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
 
     if (strana == 0) {
@@ -209,15 +220,14 @@ int main(int argc, char * argv [])
     uint32_t PpacketSize = 200; // bajty
     bool verbose = false; //false
 
-    // simulačné parametre
-    uint32_t numPackets = 10000; // počet paketov, ktoré sa majú odoslať
-    double interval = 1.0; // sekúnd
-    double startTime = 0.0; // sekúnd
+    //simulacne parametre
+    uint32_t numPackets = 10000; // pocet paketov ktore sa maju odoslat
+    double interval = 1.0; // sec
+    double startTime = 0.0; // sec
     double distanceToRx = 10.0; // metre
     double offset = 81.0;
 
-    // Premenné energetického kombajnu
-    double harvestingUpdateInterval = 1; // sekúnd
+    double harvestingUpdateInterval = 1; // sec
 
     Gnuplot graf("graf_pole.svg");
     graf.SetTerminal( "svg");
@@ -267,8 +277,8 @@ int main(int argc, char * argv [])
     
     Gnuplot graf7("graf_pole7.svg");
     graf7.SetTerminal("svg");
-    graf7.SetTitle("Graf zavislosti Throughput od node.");
-    graf7.SetLegend("Node", "Throughput");
+    graf7.SetTitle("Graf zavislosti priepustnosti od node.");
+    graf7.SetLegend("Node", "Priepustnost");
     Gnuplot2dDataset data7;
     data7.SetTitle("Vysledok");
     data7.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
@@ -276,7 +286,7 @@ int main(int argc, char * argv [])
     Gnuplot graf8("graf_pole8.svg");
     graf8.SetTerminal("svg");
     graf8.SetTitle("Graf zavislosti sumy oneskorenia paketov od node.");
-    graf8.SetLegend("Node", "suma oneskorenia paketov [s]");
+    graf8.SetLegend("Node", "Suma oneskorenia paketov [s]");
     Gnuplot2dDataset data8;
     data8.SetTitle("Vysledok");
     data8.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
@@ -284,7 +294,7 @@ int main(int argc, char * argv [])
     Gnuplot graf9("graf_pole9.svg");
     graf9.SetTerminal("svg");
     graf9.SetTitle("Graf zavislosti priemerneho oneskorenia od node.");
-    graf9.SetLegend("Node", "priemerneho oneskorenia [ms]");
+    graf9.SetLegend("Node", "Priemerneho oneskorenia [ms]");
     Gnuplot2dDataset data9;
     data9.SetTitle("Vysledok");
     data9.SetStyle(Gnuplot2dDataset :: LINES_POINTS);
@@ -306,35 +316,31 @@ int main(int argc, char * argv [])
     cmd.AddValue("distanceToRx", "vzdialenosť osi X medzi uzlami", distanceToRx);
     cmd.AddValue("verbose", "Zapnúť všetky komponenty protokolu zariadenia", verbose);
     cmd.Parse(argc, argv);
-
-    // Konverzia na objekt času
+    // Convert to time object
     Time interPacketInterval = Seconds(interval);
-
-    // vypne fragmentáciu pre snímky pod 2200 bajtov
+    // disable fragmentation for frames below 2200 bytes
     Config::SetDefault("ns3::WifiRemoteStationManager::FragmentationThreshold",
                           StringValue("2200"));
-    // vypnúť RTS / CTS pre snímky pod 2200 bajtov
+    // turn off RTS/CTS for frames below 2200 bytes
     Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold",
                           StringValue("2200"));
-    // Fix non-unicast dátovej rýchlosti, aby bola rovnaká ako unicast
+    // Fix non-unicast data rate to be the same as that of unicast
     Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode",
                           StringValue(phyMode));
 
-    // pre uzly> senzors
+    // pre uzly senzors
     NodeContainer senzors;
     senzors.Create(numNodes);
 
-    // pre uzol> polnohospodar
+    // pre uzol hospodar
     NodeContainer hosp;
     hosp.Create(1);
 
-    // pre celú senzorickú sieť
     NodeContainer senzorNet;
     senzorNet.Add(hosp);
     senzorNet.Add(senzors);
 
-
-    //Nižšie uvedený súbor pomocníkov nám pomôže zostaviť WiFi NIC, ktoré chceme
+    // The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
     if(verbose)
     {
@@ -345,29 +351,28 @@ int main(int argc, char * argv [])
     /** Wifi PHY **/
 
     YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
-    wifiPhy.Set("RxGain", DoubleValue(-30.0));
-    wifiPhy.Set("TxGain", DoubleValue(offset + Prss));
+    wifiPhy.Set("RxGain", DoubleValue(-30.0)); //zapis
+    wifiPhy.Set("TxGain", DoubleValue(offset + Prss)); //citanie
     wifiPhy.Set("EnergyDetectionThreshold", DoubleValue(-90.0));
-//    wifiPhy.Set("CcaMode1Threshold", DoubleValue(-61.8));
+    //wifiPhy.Set("CcaMode1Threshold", DoubleValue(-61.8));
 
-    /** wifi kanál **/
+    /** wifi Channel **/
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
-    //vytvoriť wifi kanál
+    // create wifi channel
     Ptr<YansWifiChannel> wifiChannelPtr = wifiChannel.Create();
     wifiPhy.SetChannel(wifiChannelPtr);
 
-    /** Vrstva MAC **/
-    // Pridajte MAC a vypnite riadenie rýchlosti
+    // Add a MAC and disable rate control
     WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode",
                                   StringValue(phyMode), "ControlMode",
                                   StringValue(phyMode));
-    // Nastavte ho na režim ad-hoc
+    // Set it to ad-hoc mode
     wifiMac.SetType("ns3::AdhocWifiMac");
 
-    /** nainštalovať PHY + MAC **/
+    /** install PHY + MAC **/
     NetDeviceContainer senzorDevices = wifi.Install(wifiPhy, wifiMac, senzors);
     NetDeviceContainer hospDevice = wifi.Install(wifiPhy, wifiMac, hosp);
     NetDeviceContainer allDevices = wifi.Install(wifiPhy, wifiMac, senzorNet);
@@ -385,39 +390,37 @@ int main(int argc, char * argv [])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(senzors);
 
-    // poľnohospodár
+    // hospodar
     Ptr <ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(100.0, 250.0, 0.0));
     mobility.SetPositionAllocator(positionAlloc);
     mobility.Install(hosp);
 
 
-    /** Energetický model **/
-    /************************************************* **************************/
-    /* Zdroj energie */
+    /***************************************************************************/
+    /* energy source */
     BasicEnergySourceHelper basicSourceHelper;
-    // konfigurácia zdroja energie
+    // configure energy source
     basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue (3.0));
-    // nainštalovať zdroj
+    // install source
     EnergySourceContainer sources = basicSourceHelper.Install(senzors);
-    /* energetický model zariadenia */
+    /* device energy model */
     WifiRadioEnergyModelHelper radioEnergyHelper;
-    // konfigurovať model rádiovej energie
-    radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.0290));
-    radioEnergyHelper.Set("RxCurrentA", DoubleValue(0.0080));
-    // nainštalovať model zariadenia
+    // configure radio energy model
+    radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.0290)); //citanie
+    radioEnergyHelper.Set("RxCurrentA", DoubleValue(0.0080)); //zapis
+    // install device model
     DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install(senzorDevices, sources);
 
-    /* energetický kombajn */
+    /* energy harvester */
     BasicEnergyHarvesterHelper basicHarvesterHelper;
-    // konfigurácia zberača energie
-    basicHarvesterHelper.Set("PeriodicHarvestedPowerUpdateInterval", TimeValue (Seconds (harvestingUpdateInterval)));
+    // configure energy harvester
+    basicHarvesterHelper.Set("PeriodicHarvestedPowerUpdateInterval", TimeValue(Seconds(harvestingUpdateInterval)));
     basicHarvesterHelper.Set("HarvestablePower", StringValue("ns3::UniformRandomVariable [Min = 0,0 | Max = 0,1]"));
-    // nainštalovať kombajn na všetky sources energie
+    // install harvester on all energy sources
     EnergyHarvesterContainer harvesters = basicHarvesterHelper.Install(sources);
 
-    /************************************************* ************************************************** **************/
-    /** Internetový zásobník **/
+    /*****************************************************************************************************************/
     OlsrHelper olsr;
     Ipv4StaticRoutingHelper staticRouting;
 
@@ -435,7 +438,7 @@ int main(int argc, char * argv [])
     Ipv4InterfaceContainer IpContainer = ipv4.Assign(allDevices);
 
     TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
-    Ptr<Socket> recvSink = Socket::CreateSocket(hosp.Get(0), tid); // uzol 0, Cieľ
+    Ptr<Socket> recvSink = Socket::CreateSocket(hosp.Get(0), tid);
     InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), 80);
     recvSink->Bind(local);
     recvSink->SetRecvCallback(MakeCallback(&ReceivePacket));
@@ -445,26 +448,24 @@ int main(int argc, char * argv [])
         for(int k = 0; k <5; k ++)
         {
 
-            Simulator::Schedule (Seconds (startTime + j * 0.7 + k * 0.4), & goToNewPosition, hosp.Get(0), &data, & data2, k);
+            Simulator::Schedule(Seconds(startTime + j * 0.7 + k * 0.4), &goToNewPosition, hosp.Get(0), &data, & data2, k);
 
-            for (uint32_t i = 0; i <senzors.GetN(); i ++)
+            for (uint32_t i = 0; i < senzors.GetN(); i ++)
             {
                 Ptr <ListPositionAllocator> positionAlloc = CreateObject <ListPositionAllocator> ();
                 positionAlloc->Add(Vector(135.0 + i * 5, 220.0, 0.0));
                 mobility.SetPositionAllocator(positionAlloc);
 
-                Ptr <Socket> source = Socket::CreateSocket(senzors.Get(i), tid); // node i, Zdroj
-                InetSocketAddress remote = InetSocketAddress (Ipv4Address::GetBroadcast(), 80);
+                Ptr<Socket> source = Socket::CreateSocket(senzors.Get(i), tid); // node i, Zdroj
+                InetSocketAddress remote = InetSocketAddress(Ipv4Address::GetBroadcast(), 80);
                 source->SetAllowBroadcast(true);
                 source->Connect(remote);
 
-                /** pripojiť sources sledovania **/
-                /************************************************* **************************/
-                // všetky stopy sú pripojené k uzlu 1 (Cieľ)
-                // Zdroj energie
+                /***************************************************************************/
+                // all traces are connected to node 1 (Destination)
+                // energy source
                 Ptr<BasicEnergySource> basicSourcePtr = DynamicCast<BasicEnergySource>(sources.Get(0));
                 basicSourcePtr->TraceConnectWithoutContext("RemainingEnergy", MakeCallback(&RemainingEnergy));
-                // energetický model zariadenia
                 // device energy model
                 Ptr<DeviceEnergyModel> basicRadioModelPtr =
                   basicSourcePtr->FindDeviceEnergyModels ("ns3::WifiRadioEnergyModel").Get (0);
@@ -477,24 +478,24 @@ int main(int argc, char * argv [])
                 /************************************************* **************************/
 
                 /** nastavenie simulácie **/
-                // začať prevádzku
+                // start traffic
 
                 Simulator::Schedule(Seconds(startTime + j * 0.7 + k * 0.4), &GenerateTraffic, source, PpacketSize,
-                                    senzorNet.Get(0), numPackets, interPacketInterval);
+                                    senzorNet.Get(0), numPackets, interPacketInterval); //v čase simulácie zmena v modelu L2-L5 3 body
             }
 
         }
     }
     
-    //https://www.nsnam.org/doxygen/wifi-hidden-terminal_8cc_source.html
-    // 7. Install applications: two CBR streams each saturating the channel
+   //https://www.nsnam.org/doxygen/wifi-hidden-terminal_8cc_source.html
+   // 7. Install applications: two CBR streams each saturating the channel
    uint16_t cbrPort = 12345;
    Ipv4Address hospIpv4 = hosp.Get(0)->GetObject<Ipv4>()->GetAddress(1,0).GetLocal();
    OnOffHelper onOffHelper ("ns3::UdpSocketFactory", InetSocketAddress (hospIpv4, cbrPort));
    onOffHelper.SetAttribute("PacketSize", UintegerValue(PpacketSize));
    onOffHelper.SetAttribute("OnTime",  StringValue ("ns3::ConstantRandomVariable[Constant=1000]"));
    onOffHelper.SetAttribute("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  // onOffHelper.SetConstantRate(DataRate("448kb/s"));
+   //onOffHelper.SetConstantRate(DataRate("448kb/s"));
    onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate("448kb/s")));
    onOffHelper.SetAttribute("StartTime", TimeValue(Seconds(startTime)));
     ApplicationContainer cbrApps;
@@ -515,7 +516,7 @@ int main(int argc, char * argv [])
     }
     anim.UpdateNodeSize(25, 10, 10);
     anim.UpdateNodeColor(hosp.Get(0), 255, 0, 0);
-    anim.UpdateNodeDescription(hosp.Get(0), "poľnohospodárodar");
+    anim.UpdateNodeDescription(hosp.Get(0), "Hospodarodar");
 
 
     Simulator::Run();
@@ -534,7 +535,7 @@ int main(int argc, char * argv [])
     for(std::map<FlowId, FlowMonitor::FlowStats>::const_iterator it = stats.begin(); it != stats.end(); it++)
       {
             Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow(it->first);
-/*Calc needed stats*/
+		/*Calc needed stats*/
 		double packetLossRate = ((double)it->second.lostPackets/(double)(it->second.lostPackets + it->second.rxPackets))*100;
 		double meanDelay = (it->second.delaySum.GetMilliSeconds()/(double)it->second.rxPackets);
 		double usefulData = ((double)(it->second.txBytes - meanDroppedBytes(it->second.bytesDropped))/(double)it->second.txBytes)*100;
