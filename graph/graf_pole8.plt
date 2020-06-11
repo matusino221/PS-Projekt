@@ -2,31 +2,31 @@ set terminal svg
 set output "graf_pole8.svg"
 set title "Graf zavislosti sumy oneskorenia paketov od node."
 set xlabel "Node"
-set ylabel "suma oneskorenia paketov [s]"
+set ylabel "Suma oneskorenia paketov [s]"
 plot "-"  title "Vysledok" with linespoints
 1 0
-2 45.661
+2 0
 3 0
-4 0
-5 0
+4 75.562
+5 41.981
 6 0
-7 47.922
-8 87.968
-9 85.575
+7 76.299
+8 0
+9 0
 10 0
-11 28.434
-12 0
-13 58.23
-14 21.516
-15 95.882
-16 0
+11 0
+12 75.591
+13 78.93
+14 0
+15 0
+16 18.593
 17 0
-18 42.989
+18 71.808
 19 0
-20 23.798
-21 0
-22 26.781
-23 81.683
-24 63.656
+20 0
+21 67.929
+22 0
+23 0
+24 71.159
 25 0
 e

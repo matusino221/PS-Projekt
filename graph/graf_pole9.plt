@@ -2,31 +2,31 @@ set terminal svg
 set output "graf_pole9.svg"
 set title "Graf zavislosti priemerneho oneskorenia od node."
 set xlabel "Node"
-set ylabel "priemerneho oneskorenia [ms]"
+set ylabel "Priemerneho oneskorenia [ms]"
 plot "-"  title "Vysledok" with linespoints
 1 0
-2 556.841
+2 0
 3 0
-4 0
-5 0
+4 524.736
+5 575.082
 6 0
-7 606.608
-8 508.486
-9 525
+7 512.074
+8 0
+9 0
 10 0
-11 812.4
-12 0
-13 554.571
-14 614.743
-15 518.281
-16 0
+11 0
+12 510.75
+13 481.28
+14 0
+15 0
+16 1162.06
 17 0
-18 477.656
+18 505.69
 19 0
-20 721.152
-21 0
-22 569.809
-23 451.287
-24 534.924
+20 0
+21 446.901
+22 0
+23 0
+24 487.39
 25 0
 e

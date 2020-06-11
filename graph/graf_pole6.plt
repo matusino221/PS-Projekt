@@ -4,13 +4,13 @@ set title "Graf zavislosti celkovej zozbieranej energie od casu."
 set xlabel "Cas [s]"
 set ylabel "Celkova zozbierana energia [J]"
 plot "-"  title "Vysledok" with linespoints
-1 0.376336
-2 0.525717
-3 1.26463
-4 2.00993
-5 2.86923
-6 3.69005
-7 4.50795
-8 4.96275
-9 5.78887
+1 0.129001
+2 0.577147
+3 0.793867
+4 1.02977
+5 1.60765
+6 2.07011
+7 2.52382
+8 2.88821
+9 3.36656
 e
